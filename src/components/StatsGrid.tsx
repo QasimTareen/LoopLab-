@@ -1,4 +1,5 @@
 import { CoreMember, CoreTeam } from '../types';
+import { motion } from 'motion/react';
 import { Users, Layers, Clock, TrendingUp } from 'lucide-react';
 
 interface StatsProps {
@@ -41,7 +42,7 @@ export default function StatsGrid({ members, teams }: StatsProps) {
         <div className="absolute right-0 top-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl -mr-6 -mt-6"></div>
         <div>
           <span className="text-xs text-purple-300 font-mono tracking-wider uppercase">Active Members</span>
-          <h3 className="text-3xl font-display font-bold text-white mt-1">{totalMembers}</h3>
+          <h3 className="text-3xl font-display font-bold text-white mt-1"><motion.span initial={{number:0}} animate={{number:totalMembers}}>{totalMembers}</motion.span></h3>
           <p className="text-[10px] text-purple-400 mt-1 flex items-center gap-1">
             <TrendingUp className="w-3 h-3 text-purple-400" /> +100% locally saved
           </p>

@@ -32,7 +32,7 @@ export default function StudentApplicationForm({
   
   // Placement selection
   const [section, setSection] = useState<'LoopLab' | 'LoopTech For Women'>(initialSection);
-  const [position, setPosition] = useState(initialSection === 'LoopTech For Women' ? 'LoopTech Member' : initialPosition);
+  const [positions, setPositions] = useState<string[]>(initialSection === 'LoopTech For Women' ? ['LoopTech Member'] : (initialPosition ? [initialPosition] : []));
   
   // Questionnaire
   const [experience, setExperience] = useState('');
@@ -44,15 +44,20 @@ export default function StudentApplicationForm({
   const [isTakingVpTest, setIsTakingVpTest] = useState(false);
 
   // Society Registration Fee status
-  const [feeStatus, setFeeStatus] = useState<'paid' | 'pending_payment'>('paid');
+  const [feeStatus] = useState<'pending_payment'>('pending_payment');
   const [feeAmountPaid, setFeeAmountPaid] = useState<number>(500);
 
   // Field validation for Step 1
   const validateStep1 = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const pakPhoneRegex = /^(\+92|0)3\d{9}$/;
     if (!fullName || !email || !whatsapp) {
       alert('Kindly fill in all baseline contact inputs to proceed.');
       return false;
     }
+    if (!emailRegex.test(email)) { alert('Please enter a valid email address.'); return false; }
+    const cleanedPhone = whatsapp.replace(/[-\s]/g,'');
+    if (!pakPhoneRegex.test(cleanedPhone)) { alert('Please enter a valid Pakistan mobile number (03XXXXXXXXX or +923XXXXXXXXX).'); return false; }
     // LoopTech check: Only women/girls can access LoopTech section or switch gender safely
     if (section === 'LoopTech For Women' && gender !== 'female') {
       alert('🔒 Access Denied: LoopTech For Women is a dedicated division exclusively designed as an empowered tech-space for Women/Girls. To register for LoopTech positions, candidate profile must correspond to woman-identifying focus.');
@@ -63,7 +68,7 @@ export default function StudentApplicationForm({
 
   // Field validation for Step 2
   const validateStep2 = () => {
-    if (!position) {
+    if (positions.length === 0) {
       alert('Kindly select a core position path.');
       return false;
     }
@@ -81,7 +86,7 @@ export default function StudentApplicationForm({
 
   const handleSubmission = () => {
     // Check if VP has assessment
-    if (position === 'Vice President' && !vpAssessment) {
+    if (positions.includes('Vice President') && !vpAssessment) {
       alert('Vice President position requires completion of the tactical assessment simulation timer.');
       return;
     }
@@ -95,7 +100,7 @@ export default function StudentApplicationForm({
       gender,
       isExistingLoopLabMember: isExistingLoopLab,
       section,
-      position,
+      position: positions.join(', '),
       feeStatus,
       feeAmountPaid,
       answers: {
@@ -119,10 +124,10 @@ export default function StudentApplicationForm({
   const selectSection = (sec: 'LoopLab' | 'LoopTech For Women') => {
     setSection(sec);
     if (sec === 'LoopTech For Women') {
-      setPosition('LoopTech Member');
+      setPositions(['LoopTech Member']);
       setGender('female');
     } else {
-      setPosition('');
+      setPositions([]);
     }
   };
 
@@ -140,7 +145,7 @@ export default function StudentApplicationForm({
         </span>
         <span className="text-purple-900">&rarr;</span>
         <span className={`text-[10px] font-mono tracking-wider uppercase transition-colors ${step === 3 ? 'text-fuchsia-400 font-bold' : 'text-purple-500'}`}>
-          3. Assessment & Fees
+          3. Assessment
         </span>
       </div>
 
@@ -350,9 +355,9 @@ export default function StudentApplicationForm({
                     {/* Special VP position only for looplab section */}
                     <button
                       type="button"
-                      onClick={() => setPosition('Vice President')}
+                      onClick={() => setPositions(prev => prev.includes('Vice President') ? prev.filter(p=>p!=='Vice President') : [...prev,'Vice President'])}
                       className={`p-3 text-left border rounded-xl flex justify-between items-center transition-all ${
-                        position === 'Vice President'
+                        positions.includes('Vice President')
                           ? 'bg-fuchsia-950/40 border-fuchsia-500 text-white shadow-[0_0_12px_rgba(240,171,252,0.2)]'
                           : 'bg-[#160b26]/50 border-purple-500/10 text-purple-300 hover:border-purple-500/20'
                       }`}
@@ -369,9 +374,9 @@ export default function StudentApplicationForm({
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setPosition(item.title)}
+                        onClick={() => setPositions(prev => prev.includes(item.title) ? prev.filter(p=>p!==item.title) : [...prev,item.title])}
                         className={`p-3 text-left border rounded-xl flex justify-between items-center transition-all ${
-                          position === item.title
+                          positions.includes(item.title)
                             ? 'bg-purple-950/40 border-purple-500 text-white shadow-[0_0_12px_rgba(157,78,221,0.2)]'
                             : 'bg-[#160b26]/50 border-purple-500/10 text-purple-300 hover:border-purple-500/20'
                         }`}
@@ -386,7 +391,7 @@ export default function StudentApplicationForm({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setPosition('LoopTech Member')}
+                    onClick={() => setPositions(['LoopTech Member'])}
                     className="p-4 text-left border rounded-xl flex justify-between items-center col-span-2 transition-all bg-gradient-to-br from-pink-950/20 to-purple-950/20 border-pink-500 text-white shadow-[0_0_12px_rgba(244,143,177,0.2)]"
                   >
                     <div className="flex items-center gap-3">
@@ -403,7 +408,7 @@ export default function StudentApplicationForm({
             </div>
 
             {/* Assessment Warning if VP is selected */}
-            {position === 'Vice President' && (
+            {positions.includes('Vice President') && (
               <div className="p-3 bg-fuchsia-950/30 border border-fuchsia-500/20 rounded-xl text-xs flex items-start gap-2.5">
                 <Gamepad2 className="w-4 h-4 text-fuchsia-400 mt-0.5 shrink-0 animate-bounce" />
                 <div className="space-y-0.5">
@@ -493,7 +498,7 @@ export default function StudentApplicationForm({
 
               <div className="space-y-2.5">
                 {/* VP Test state check */}
-                {position === 'Vice President' ? (
+                {positions.includes('Vice President') ? (
                   <div className="flex items-center justify-between bg-fuchsia-950/10 border border-fuchsia-500/20 p-3 rounded-lg">
                     <div>
                       <span className="block text-xs font-semibold text-fuchsia-200">VP Combat Simulator</span>
@@ -527,7 +532,7 @@ export default function StudentApplicationForm({
                       </div>
                       <div className="col-span-2 border-t border-purple-500/10 pt-1.5">
                         <span className="text-purple-400 font-mono text-[9px] block">DESIRED POSITION</span>
-                        <div className="font-bold text-fuchsia-300 truncate">{position}</div>
+                        <div className="font-bold text-fuchsia-300 truncate">{positions.join(", ")}</div>
                       </div>
                     </div>
                   </div>
