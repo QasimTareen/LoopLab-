@@ -43,6 +43,9 @@ export default function StudentApplicationForm({
   const [vpAssessment, setVpAssessment] = useState<GamingAssessmentScore | null>(null);
   const [isTakingVpTest, setIsTakingVpTest] = useState(false);
 
+  const feeStatus = 'pending_payment' as const;
+  const feeAmountPaid = 0;
+
   
   // Field validation for Step 1
   const validateStep1 = () => {
