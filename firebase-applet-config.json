@@ -1,0 +1,11 @@
+{
+  "_note": "Credentials moved to environment variables. See .env.example",
+  "projectId": "",
+  "appId": "",
+  "apiKey": "",
+  "authDomain": "",
+  "firestoreDatabaseId": "",
+  "storageBucket": "",
+  "messagingSenderId": "",
+  "measurementId": ""
+}

@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "CoreMember": {
+      "title": "CoreMember",
+      "description": "A confirmed core member of LoopLab or LoopTech.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string", "description": "Full name of the member." },
+        "email": { "type": "string", "format": "email", "description": "Primary email address." },
+        "roleTitle": { "type": "string", "description": "E.g. Vice President, Tech Co-lead." },
+        "department": { "type": "string", "enum": ["engineering", "design", "operations", "marketing", "relations"] },
+        "skills": { "type": "array", "description": "List of core skills." },
+        "availabilityHours": { "type": "integer" },
+        "bio": { "type": "string" },
+        "githubUrl": { "type": "string" },
+        "discordUsername": { "type": "string" },
+        "joinedAt": { "type": "string", "format": "date-time" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "isExistingLoopLabMember": { "type": "boolean" },
+        "hasPaidFee": { "type": "boolean" },
+        "feeAmountPaid": { "type": "number" },
+        "isLoopTechMember": { "type": "boolean" }
+      },
+      "required": ["fullName", "email", "roleTitle", "department", "discordUsername", "joinedAt"]
+    },
+    "CoreTeam": {
+      "title": "CoreTeam",
+      "description": "A regional or domain-specific team/circle.",
+      "type": "object",
+      "properties": {
+        "teamName": { "type": "string" },
+        "focusArea": { "type": "string" },
+        "leadName": { "type": "string" },
+        "leadEmail": { "type": "string", "format": "email" },
+        "communicationChannel": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "forming", "recruiting", "paused"] },
+        "maxCapacity": { "type": "integer" },
+        "currentMemberCount": { "type": "integer" },
+        "goals": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teamName", "focusArea", "leadName", "leadEmail", "communicationChannel", "status", "maxCapacity"]
+    },
+    "StudentApplication": {
+      "title": "StudentApplication",
+      "description": "The application profile submitted by students for leadership positions.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "whatsapp": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "isExistingLoopLabMember": { "type": "boolean" },
+        "section": { "type": "string", "enum": ["LoopLab", "LoopTech For Women"] },
+        "position": { "type": "string" },
+        "feeStatus": { "type": "string", "enum": ["waived", "pending_payment", "paid"] },
+        "feeAmountPaid": { "type": "number" },
+        "answers": {
+          "type": "object",
+          "properties": {
+            "experience": { "type": "string" },
+            "motivation": { "type": "string" },
+            "skills": { "type": "string" }
+          }
+        },
+        "gamingAssessment": {
+          "type": "object",
+          "properties": {
+            "totalQuestions": { "type": "integer" },
+            "correctAnswers": { "type": "integer" },
+            "timeRemainingSec": { "type": "integer" },
+            "strategicDecisions": { "type": "array" },
+            "strategicVerdict": { "type": "string" },
+            "completedAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "adminNotes": { "type": "string" },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fullName", "email", "whatsapp", "gender", "section", "position", "status", "submittedAt"]
+    }
+  },
+  "firestore": {
+    "members": {
+      "schema": "CoreMember",
+      "description": "The list of approved community members."
+    },
+    "teams": {
+      "schema": "CoreTeam",
+      "description": "The available division/circle teams of the platform."
+    },
+    "applications": {
+      "schema": "StudentApplication",
+      "description": "Submitted leadership applications under review."
+    }
+  }
+}

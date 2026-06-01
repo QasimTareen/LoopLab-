@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Standard Global System Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Validation pattern
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 100 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation rules for Member
+    function isValidMember(data) {
+      return data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 100
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 100
+        && data.roleTitle is string && data.roleTitle.size() > 0 && data.roleTitle.size() <= 100
+        && data.discordUsername is string && data.discordUsername.size() > 0 && data.discordUsername.size() <= 100;
+    }
+
+    // Validation rules for Team
+    function isValidTeam(data) {
+      return data.teamName is string && data.teamName.size() > 0 && data.teamName.size() <= 100
+        && data.focusArea is string && data.focusArea.size() > 0 && data.focusArea.size() <= 200
+        && data.leadName is string && data.leadName.size() > 0 && data.leadName.size() <= 100
+        && data.leadEmail is string && data.leadEmail.size() > 0 && data.leadEmail.size() <= 100
+        && data.communicationChannel is string && data.communicationChannel.size() > 0 && data.communicationChannel.size() <= 50
+        && data.status is string && data.status.size() > 0
+        && data.maxCapacity is int && data.maxCapacity >= 0 && data.maxCapacity <= 100;
+    }
+
+    // Validation rules for Application
+    function isValidApplication(data) {
+      return data.fullName is string && data.fullName.size() > 0 && data.fullName.size() <= 100
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 100
+        && data.whatsapp is string && data.whatsapp.size() > 0 && data.whatsapp.size() <= 50
+        && data.gender is string && data.gender.size() > 0
+        && data.section is string && data.section.size() > 0
+        && data.position is string && data.position.size() > 0
+        && data.status is string && data.status.size() > 0
+        && data.submittedAt is string && data.submittedAt.size() > 0;
+    }
+
+    // Global Safety Net default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Collection: members
+    match /members/{memberId} {
+      allow read: if true;
+      allow create, update: if isValidId(memberId) && isValidMember(incoming());
+      allow delete: if true;
+    }
+
+    // Collection: teams
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create, update: if isValidId(teamId) && isValidTeam(incoming());
+      allow delete: if true;
+    }
+
+    // Collection: applications
+    match /applications/{applicationId} {
+      allow read: if true;
+      allow create, update: if isValidId(applicationId) && isValidApplication(incoming());
+      allow delete: if true;
+    }
+  }
+}

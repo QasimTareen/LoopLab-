@@ -1,0 +1,6 @@
+{
+  "name": "LoopLab",
+  "description": "Community Core Registration Platform for Teams and Members",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
