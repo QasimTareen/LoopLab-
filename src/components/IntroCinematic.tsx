@@ -97,7 +97,7 @@ export default function IntroCinematic({ onClose }: IntroCinematicProps) {
             className="text-purple-300 tracking-[0.4em] uppercase text-xs sm:text-sm mt-1"
             style={{ textShadow: '0 0 16px rgba(139,92,246,0.6)' }}
           >
-            Where Gamers Connect
+            Where Tech Connects
           </motion.span>
         </motion.div>
 
