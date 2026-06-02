@@ -6,19 +6,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CoreMember, CoreTeam, StudentApplication } from './types';
-import MemberForm from './components/MemberForm';
-import TeamForm from './components/TeamForm';
 import Toast, { ToastMessage } from './components/Toast';
-import StudentApplicationForm from './components/StudentApplicationForm';
-import AdminPortalDashboard from './components/AdminPortalDashboard';
 import Hero3DHeader from './components/Hero3DHeader';
-import SecurityPortal from './components/SecurityPortal';
 import IntroCinematic from './components/IntroCinematic';
 
-// Firebase Integrations
-import { collection, getDocs, setDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { db, auth, googleProvider, handleFirestoreError, OperationType } from './lib/firebase';
+// External link for Tally form
+const TALLY_FORM_URL = 'https://tally.so/r/Gx5OBe';
 
 import { 
   ShieldCheck, PlusCircle, Users, Radio, Cpu, Sparkles, LogOut, 
@@ -185,7 +178,7 @@ export default function App() {
   });
   
   // Navigation states
-  const [activeTab, setActiveTab] = useState<'home' | 'mission' | 'auth' | 'looplab' | 'looptech' | 'fees' | 'admin' | 'register'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'mission' | 'looplab' | 'looptech' | 'fees'>('home');
   const [showIntro, setShowIntro] = useState(() => {
     try {
       return !sessionStorage.getItem('looplab_intro_seen');
@@ -205,9 +198,6 @@ export default function App() {
     const val = (sum % 8999) + 1000;
     return `CSUM-${val}`;
   };
-
-  // Application submission modals
-  const [selectedRoleToApply, setSelectedRoleToApply] = useState<{ title: string; section: 'LoopLab' | 'LoopTech For Women' } | null>(null);
 
   // Home Page custom portal session state hooks
   const [regFullName, setRegFullName] = useState('');
@@ -291,210 +281,18 @@ export default function App() {
     setShowProfileEditor(false);
   };
 
-  // Monitor Auth state changes
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
+  // No Firebase Auth needed
 
   // Authentication requirements waived - anyone can view all pages without login constraints
-
-  // Sync state data from Firestore with real-time subscriptions
+  
+  // Initialize with seed data (no Firestore syncing)
   useEffect(() => {
-    const loadFirebaseData = async () => {
-      setLoadingDb(true);
-      try {
-        // ===== MEMBERS - Real-time listener =====
-        const membersUnsubscribe = onSnapshot(
-          collection(db, 'members'),
-          (snapshot) => {
-            try {
-              if (snapshot.empty) {
-                // Seed members if empty
-                SEED_MEMBERS.forEach(m => {
-                  setDoc(doc(db, 'members', m.id), cleanUndefined(m)).catch(err => {
-                    console.error('Error seeding member:', err);
-                  });
-                });
-                setMembers(SEED_MEMBERS);
-                console.log('✅ Members synced from Firestore (seeded):', SEED_MEMBERS.length);
-              } else {
-                const membersData = snapshot.docs.map(d => d.data() as CoreMember);
-                setMembers(membersData);
-                console.log('✅ Members synced from Firestore:', membersData.length);
-              }
-            } catch (error) {
-              console.error('❌ Error processing members snapshot:', error);
-            }
-          },
-          (error) => {
-            console.error('❌ Firestore members subscription error:', error);
-            // Don't fall back to localStorage - Firestore is source of truth
-          }
-        );
-
-        // ===== TEAMS - Real-time listener =====
-        const teamsUnsubscribe = onSnapshot(
-          collection(db, 'teams'),
-          (snapshot) => {
-            try {
-              if (snapshot.empty) {
-                // Seed teams if empty
-                SEED_TEAMS.forEach(t => {
-                  setDoc(doc(db, 'teams', t.id), cleanUndefined(t)).catch(err => {
-                    console.error('Error seeding team:', err);
-                  });
-                });
-                setTeams(SEED_TEAMS);
-                console.log('✅ Teams synced from Firestore (seeded):', SEED_TEAMS.length);
-              } else {
-                const teamsData = snapshot.docs.map(d => d.data() as CoreTeam);
-                setTeams(teamsData);
-                console.log('✅ Teams synced from Firestore:', teamsData.length);
-              }
-            } catch (error) {
-              console.error('❌ Error processing teams snapshot:', error);
-            }
-          },
-          (error) => {
-            console.error('❌ Firestore teams subscription error:', error);
-            // Don't fall back to localStorage - Firestore is source of truth
-          }
-        );
-
-        setLoadingDb(false);
-
-        // Return cleanup function for subscriptions
-        return () => {
-          membersUnsubscribe();
-          teamsUnsubscribe();
-        };
-      } catch (err) {
-        console.error("Global Firestore initialization error:", err);
-        setLoadingDb(false);
-      }
-    };
-
-    const unsubscribe = loadFirebaseData();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    // Simply initialize with seed data
+    setMembers(SEED_MEMBERS);
+    setTeams(SEED_TEAMS);
+    setApplications(SEED_APPLICATIONS);
+    setLoadingDb(false);
   }, []);
-
-  // Applications real-time subscription
-  useEffect(() => {
-    console.log('Setting up applications real-time listener...');
-    
-    const appsUnsubscribe = onSnapshot(
-      collection(db, 'applications'),
-      (snapshot) => {
-        try {
-          if (snapshot.empty) {
-            // Seed applications if empty
-            console.log('Applications collection empty, seeding with defaults...');
-            SEED_APPLICATIONS.forEach(a => {
-              setDoc(doc(db, 'applications', a.id), cleanUndefined(a)).catch(err => {
-                console.error('Error seeding application:', err);
-              });
-            });
-            setApplications(SEED_APPLICATIONS);
-            console.log('✅ Applications synced from Firestore (seeded):', SEED_APPLICATIONS.length);
-          } else {
-            const appsData = snapshot.docs.map(d => d.data() as StudentApplication);
-            setApplications(appsData);
-            console.log('✅ Applications synced from Firestore:', appsData.length);
-          }
-        } catch (error) {
-          console.error('❌ Error processing applications snapshot:', error);
-        }
-      },
-      (error) => {
-        console.error('❌ Firestore applications subscription error:', error);
-        console.error('ERROR DETAILS:', error);
-        // Don't fall back to localStorage - Firestore is source of truth
-      }
-    );
-
-    return () => {
-      console.log('Cleaning up applications real-time listener');
-      appsUnsubscribe();
-    };
-  }, []);
-
-  const saveApplications = async (updatedApps: StudentApplication[], singleApp?: StudentApplication) => {
-    const deletedApps = applications.filter(
-      (existingApp) => !updatedApps.some((newApp) => newApp.id === existingApp.id)
-    );
-
-    setApplications(updatedApps);
-    
-
-    for (const app of deletedApps) {
-      try {
-        await deleteDoc(doc(db, 'applications', app.id));
-      } catch (err) {
-        console.error("Failed to delete application from Firestore:", err);
-      }
-    }
-
-    if (singleApp) {
-      try {
-        await setDoc(doc(db, 'applications', singleApp.id), cleanUndefined(singleApp));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `applications/${singleApp.id}`);
-      }
-    } else {
-      for (const app of updatedApps) {
-        try {
-          await setDoc(doc(db, 'applications', app.id), cleanUndefined(app));
-        } catch (err) {
-          console.error("Error batch syncing app:", app.id, err);
-        }
-      }
-    }
-  };
-
-  const saveMembers = async (updatedMembers: CoreMember[], singleMember?: CoreMember) => {
-    setMembers(updatedMembers);
-    localStorage.setItem('looplab_members', JSON.stringify(updatedMembers));
-    if (singleMember) {
-      try {
-        await setDoc(doc(db, 'members', singleMember.id), cleanUndefined(singleMember));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `members/${singleMember.id}`);
-      }
-    } else {
-      for (const m of updatedMembers) {
-        try {
-          await setDoc(doc(db, 'members', m.id), cleanUndefined(m));
-        } catch (err) {
-          console.error("Error batch syncing member:", m.id, err);
-        }
-      }
-    }
-  };
-
-  const saveTeams = async (updatedTeams: CoreTeam[], singleTeam?: CoreTeam) => {
-    setTeams(updatedTeams);
-    localStorage.setItem('looplab_teams', JSON.stringify(updatedTeams));
-    if (singleTeam) {
-      try {
-        await setDoc(doc(db, 'teams', singleTeam.id), cleanUndefined(singleTeam));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `teams/${singleTeam.id}`);
-      }
-    } else {
-      for (const t of updatedTeams) {
-        try {
-          await setDoc(doc(db, 'teams', t.id), cleanUndefined(t));
-        } catch (err) {
-          console.error("Error batch syncing team:", t.id, err);
-        }
-      }
-    }
-  };
 
   // Toast utilities
   const addToast = (text: string, type: ToastMessage['type'] = 'success') => {
@@ -513,135 +311,14 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Triggers when student application resolves successfully
-  const handleAppSubmitSuccess = (newApp: StudentApplication) => {
-    const updatedApps = [newApp, ...applications];
-    saveApplications(updatedApps, newApp);
-    addToast(`Application code ${newApp.id} logged to registry ledger under review.`);
-
-    // If approved internally right away, register them as CoreMember as well
-    if (newApp.status === 'approved') {
-      const isExist = members.some(m => m.email.toLowerCase() === newApp.email.toLowerCase());
-      if (!isExist) {
-        const newMember: CoreMember = {
-          id: `m-${Date.now()}`,
-          fullName: newApp.fullName,
-          email: newApp.email,
-          roleTitle: newApp.position,
-          department: newApp.section === 'LoopTech For Women' ? 'design' : 'engineering',
-          skills: newApp.answers.skills.split(',').map(s => s.trim()),
-          availabilityHours: 20,
-          bio: newApp.answers.motivation,
-          discordUsername: newApp.fullName.toLowerCase().replace(/\s+/g, '_') + '_member',
-          gender: newApp.gender,
-          isExistingLoopLabMember: true,
-          hasPaidFee: true,
-          feeAmountPaid: newApp.feeAmountPaid,
-          isLoopTechMember: newApp.section === 'LoopTech For Women',
-          joinedAt: new Date().toISOString()
-        };
-        saveMembers([newMember, ...members], newMember);
-      }
-    }
-  };
-
-  // Triggers when admin makes list model changes in portal (Accept, deny, insert, etc)
-  const handleUpdateAppsByAdmin = (updatedApps: StudentApplication[]) => {
-    saveApplications(updatedApps);
-    addToast("Database credentials synced and verified successfully.", "info");
-
-    // Re-synchronize approved students directly as LoopLab Core members
-    let approvedCoreMembers = [...members];
-    const appsByEmail = new Map<string, StudentApplication>();
-    updatedApps.forEach(app => {
-      appsByEmail.set(app.email.toLowerCase(), app);
-    });
-
-    updatedApps.forEach(app => {
-      if (app.status === 'approved') {
-        const existingIdx = approvedCoreMembers.findIndex(
-          m => m.email.toLowerCase() === app.email.toLowerCase()
-        );
-
-        if (existingIdx !== -1) {
-          // Update existing member record details
-          approvedCoreMembers[existingIdx] = {
-            ...approvedCoreMembers[existingIdx],
-            fullName: app.fullName,
-            roleTitle: app.position,
-            department: app.section === 'LoopTech For Women' ? 'design' : 'engineering',
-            skills: app.answers.skills.split(',').map(s => s.trim()),
-            gender: app.gender,
-            feeAmountPaid: app.feeAmountPaid,
-            isLoopTechMember: app.section === 'LoopTech For Women'
-          };
-        } else {
-          // Create new approved core member
-          approvedCoreMembers.unshift({
-            id: `m-${Date.now()}-${Math.floor(Math.random() * 900)}`,
-            fullName: app.fullName,
-            email: app.email,
-            roleTitle: app.position,
-            department: app.section === 'LoopTech For Women' ? 'design' : 'engineering',
-            skills: app.answers.skills.split(',').map(s => s.trim()),
-            availabilityHours: 25,
-            bio: app.answers.motivation,
-            discordUsername: app.fullName.toLowerCase().replace(/\s+/g, '_') + '_candidate',
-            gender: app.gender,
-            isExistingLoopLabMember: true,
-            hasPaidFee: true,
-            feeAmountPaid: app.feeAmountPaid,
-            isLoopTechMember: app.section === 'LoopTech For Women',
-            joinedAt: new Date().toISOString()
-          });
-        }
-      }
-    });
-
-    // Remove any user who is marked as rejected or pending in Applications
-    approvedCoreMembers = approvedCoreMembers.filter(m => {
-      const app = appsByEmail.get(m.email.toLowerCase());
-      if (app && app.status !== 'approved') {
-        return false;
-      }
-      return true;
-    });
-
-    saveMembers(approvedCoreMembers);
-  };
-
   const handleApplyRole = (title: string, section: 'LoopLab' | 'LoopTech For Women') => {
-    setSelectedRoleToApply({ title, section });
-  };
-
-  // Delete Member
-  const handleDeleteMember = async (id: string) => {
-    const memberToDelete = members.find((m) => m.id === id);
-    const updated = members.filter((m) => m.id !== id);
-    await saveMembers(updated);
-    try {
-      await deleteDoc(doc(db, 'members', id));
-    } catch (err) {
-      console.error("Failed to delete member from Firestore:", err);
+    // All applications redirect to Tally form
+    // Tally form handles VP assessment and other position applications
+    if (title === 'Vice President') {
+      addToast('Launching VP Assessment - Complete it and take a screenshot of your final score!', 'success');
     }
-    if (memberToDelete) {
-      addToast(`Fellowship status revoked for ${memberToDelete.fullName}.`, 'info');
-    }
-  };
-
-  // Delete Team
-  const handleDeleteTeam = async (id: string) => {
-    const teamToDelete = teams.find((t) => t.id === id);
-    const updated = teams.filter((t) => t.id !== id);
-    await saveTeams(updated);
-    try {
-      await deleteDoc(doc(db, 'teams', id));
-    } catch (err) {
-      console.error("Failed to delete team from Firestore:", err);
-    }
-    if (teamToDelete) {
-      addToast(`Circle "${teamToDelete.teamName}" has been disbanded.`, 'info');
-    }
+    // Redirect to Tally form
+    window.location.href = TALLY_FORM_URL;
   };
 
   // Export Database manifest
@@ -806,16 +483,6 @@ export default function App() {
                      }`}
                    >
                      Fees
-                   </button>
-                   <button
-                     onClick={() => { setActiveTab('admin'); setShowProfileEditor(false); }}
-                     className={`text-[10px] uppercase font-mono tracking-wider px-3 py-1.5 font-bold rounded-lg transition-all cursor-pointer ${
-                       activeTab === 'admin'
-                         ? 'bg-purple-950/80 border border-purple-500/20 text-fuchsia-400 shadow-md'
-                         : 'text-purple-450 hover:text-fuchsia-300 hover:bg-white/5'
-                     }`}
-                   >
-                     Admin
                    </button>
                  </nav>
                </div>
@@ -1906,64 +1573,9 @@ export default function App() {
                 <div className="absolute right-4 top-4 text-purple-500/10 text-8xl select-none font-serif">✿</div>
                 <MemberForm onSubmit={handleRegisterMember} />
               </div>
-            </motion.div>
-          )}
-
-          {/* TAB 5: Admin Command Center */}
-          {activeTab === 'admin' && (
-            <motion.div
-              key="admin"
-              initial={{ opacity: 0, rotateY: 10, rotateX: 6, z: -120, y: 30 }}
-              animate={{ opacity: 1, rotateY: 0, rotateX: 0, z: 0, y: 0 }}
-              exit={{ opacity: 0, rotateY: -10, rotateX: -6, z: -120, y: -30 }}
-              transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-              style={{ transformStyle: 'preserve-3d' }}
-            >
-              <AdminPortalDashboard 
-                applications={applications}
-                onUpdateApplications={handleUpdateAppsByAdmin}
-                onClose={() => setActiveTab('looplab')}
-              />
-            </motion.div>
-          )}
 
         </AnimatePresence>
       </main>
-
-      {/* STUDENT REGISTRATION INTERACTIVE MODAL OVERLAY */}
-      {selectedRoleToApply && (
-        <div className="fixed inset-0 bg-[#0c0515]/95 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-[#12091f] border border-purple-500/30 rounded-3xl p-6 shadow-2xl max-w-2xl w-full relative">
-            
-            <button
-              onClick={() => setSelectedRoleToApply(null)}
-              className="absolute top-4 right-4 text-purple-400 hover:text-white transition-colors p-1"
-            >
-              ✕
-            </button>
-
-            <div className="space-y-1 mb-5 border-b border-purple-500/15 pb-4">
-              <span className={`inline-block text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded border ${
-                selectedRoleToApply.section === 'LoopTech For Women' 
-                  ? 'bg-pink-950/40 text-pink-300 border-pink-500/20' 
-                  : 'bg-purple-950/40 text-purple-300 border-purple-500/20'
-              }`}>
-                {selectedRoleToApply.section} placement node
-              </span>
-              <h3 className="text-lg font-black text-white relative flex items-center gap-2">
-                <span>Placement Request: {selectedRoleToApply.title}</span>
-              </h3>
-            </div>
-
-            <StudentApplicationForm
-              onSubmitSuccess={(newApp) => {
-                handleAppSubmitSuccess(newApp);
-              }}
-              onClose={() => setSelectedRoleToApply(null)}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Pristine Sophisticated Dark Footer bar with status indicator */}
       <footer className="w-full max-w-7xl mx-auto mt-8 bg-gradient-to-r from-[#160b26] to-[#04010a] border border-purple-500/15 rounded-xl px-5 py-4 flex flex-col sm:flex-row justify-between items-center text-xs text-white tracking-wider">
@@ -1976,13 +1588,7 @@ export default function App() {
           <span className="text-[#a78bfa] text-[10px] font-mono">ALL SYSTEMS SECURE & OPERATIONAL</span>
         </div>
         <div className="flex items-center gap-3 text-[11px] font-mono mt-2 sm:mt-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('admin')}
-            className="text-fuchsia-300 hover:text-white transition-all uppercase font-bold text-[10px] tracking-wider px-3 py-1.5 bg-purple-950/40 border border-purple-500/15 rounded-lg hover:border-purple-500/30 cursor-pointer"
-          >
-            ⚖ Admin Portal
-          </button>
+          {/* Admin portal removed */}
         </div>
       </footer>
 
