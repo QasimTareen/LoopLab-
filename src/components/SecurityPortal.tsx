@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, 
@@ -13,6 +13,7 @@ import {
   Info,
   Maximize2
 } from 'lucide-react';
+import FirestoreAccountService from '../lib/FirestoreAccountService';
 
 interface SecurityPortalProps {
   activePortalTab: 'login' | 'signup';
@@ -161,68 +162,92 @@ export default function SecurityPortal({
     };
   };
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     if (!loginEmail || !loginChecksum) {
       addToast("Please enter both your email address and checksum key to proceed.", "error");
       return;
     }
-    const cleanEmail = loginEmail.trim().toLowerCase();
-    const cleanChecksum = loginChecksum.trim();
+    
+    try {
+      const cleanEmail = loginEmail.trim().toLowerCase();
+      const cleanChecksum = loginChecksum.trim();
 
-    const savedUsers = localStorage.getItem('looplab_custom_users') || '{}';
-    const users = JSON.parse(savedUsers);
+      // Verify user with Firestore
+      const user = await FirestoreAccountService.verifyUser(cleanEmail, cleanChecksum);
 
-    if (!users[cleanEmail]) {
-      addToast("No active user configuration found for this email.", "error");
-      return;
+      if (!user) {
+        addToast("No active user configuration found or checksum mismatch. Portal access declined.", "error");
+        return;
+      }
+
+      // Create session in Firestore
+      await FirestoreAccountService.createSession(cleanEmail, 'Web Browser');
+
+      // Update local state
+      setPortalUser(user);
+      localStorage.setItem('looplab_custom_session', JSON.stringify(user));
+
+      // Also maintain active sessions in localStorage for backward compatibility
+      const activeSessions = JSON.parse(localStorage.getItem('looplab_active_sessions') || '[]');
+      if (!activeSessions.includes(cleanEmail)) {
+        activeSessions.push(cleanEmail);
+        localStorage.setItem('looplab_active_sessions', JSON.stringify(activeSessions));
+      }
+
+      addToast(`Authenticated! Welcome back, ${user.fullName}.`, "success");
+      setActiveTab('home');
+    } catch (error) {
+      console.error('Sign in error:', error);
+      addToast("An error occurred during authentication. Please try again.", "error");
     }
-
-    if (users[cleanEmail].checksum !== cleanChecksum) {
-      addToast("Checksum verification mismatch. Portal access declined.", "error");
-      return;
-    }
-
-    const matchedUser = users[cleanEmail];
-    setPortalUser(matchedUser);
-    localStorage.setItem('looplab_custom_session', JSON.stringify(matchedUser));
-
-    const activeSessions = JSON.parse(localStorage.getItem('looplab_active_sessions') || '[]');
-    if (!activeSessions.includes(cleanEmail)) {
-      activeSessions.push(cleanEmail);
-      localStorage.setItem('looplab_active_sessions', JSON.stringify(activeSessions));
-    }
-
-    addToast(`Authenticated! Welcome back, ${matchedUser.fullName}.`, "success");
-    setActiveTab('home');
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (!regFullName || !regEmail || !regUsername) {
       addToast("Please fill in all requested fields to calculate your secure checksum.", "error");
       return;
     }
-    const cleanEmail = regEmail.trim().toLowerCase();
     
-    const savedUsers = localStorage.getItem('looplab_custom_users') || '{}';
-    const users = JSON.parse(savedUsers);
-    if (users[cleanEmail]) {
-      addToast("This email is already registered. Please go to Sign-In.", "info");
-      return;
-    }
+    try {
+      const cleanEmail = regEmail.trim().toLowerCase();
+      
+      // Check if user already exists in Firestore
+      const existingUser = await FirestoreAccountService.getUserByEmail(cleanEmail);
+      if (existingUser) {
+        addToast("This email is already registered. Please go to Sign-In.", "info");
+        return;
+      }
 
-    const checksum = calculateChecksumValue(cleanEmail, regUsername);
-    users[cleanEmail] = {
-      fullName: regFullName,
-      email: cleanEmail,
-      username: regUsername,
-      gender: regGender,
-      checksum,
-      profilePic: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${regUsername}`
-    };
-    
-    localStorage.setItem('looplab_custom_users', JSON.stringify(users));
-    setGeneratedChecksum(checksum);
-    addToast("Access passport checksum computed successfully!", "success");
+      const checksum = calculateChecksumValue(cleanEmail, regUsername);
+      
+      // Register user in Firestore
+      await FirestoreAccountService.registerUser(
+        cleanEmail,
+        regFullName,
+        regUsername,
+        checksum,
+        regGender as 'male' | 'female' | 'other'
+      );
+
+      // Also save to localStorage for backward compatibility
+      const savedUsers = localStorage.getItem('looplab_custom_users') || '{}';
+      const users = JSON.parse(savedUsers);
+      users[cleanEmail] = {
+        fullName: regFullName,
+        email: cleanEmail,
+        username: regUsername,
+        gender: regGender,
+        checksum,
+        profilePic: `https://api.dicebear.com/7.x/pixel-art/svg?seed=${regUsername}`
+      };
+      localStorage.setItem('looplab_custom_users', JSON.stringify(users));
+      
+      setGeneratedChecksum(checksum);
+      addToast("Access passport checksum computed successfully!", "success");
+    } catch (error) {
+      console.error('Sign up error:', error);
+      addToast("An error occurred during registration. Please try again.", "error");
+    }
   };
 
   return (

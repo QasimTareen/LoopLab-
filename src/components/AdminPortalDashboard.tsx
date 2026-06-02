@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   Lock, KeyRound, LogOut, Check, X, ShieldAlert, FileSpreadsheet, 
   Trash2, Edit, Plus, Eye, Clock, UserCheck, AlertCircle, FileText, Search
 } from 'lucide-react';
 import { StudentApplication, LISTED_POSITIONS } from '../types';
+import FirestoreAccountService, { FirestoreUser, ActiveSession } from '../lib/FirestoreAccountService';
 
 interface AdminPortalDashboardProps {
   applications: StudentApplication[];
@@ -98,14 +99,37 @@ export default function AdminPortalDashboard({
 
   const [accountsSearchQuery, setAccountsSearchQuery] = useState('');
 
-  const refreshUsers = () => {
-    try {
-      const saved = localStorage.getItem('looplab_custom_users');
-      const usersObj = saved ? JSON.parse(saved) : {};
-      setRegisteredUsers(Object.values(usersObj));
+  // Firestore real-time subscriptions
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
-      const active = localStorage.getItem('looplab_active_sessions');
-      setActiveSessions(active ? JSON.parse(active) : []);
+    // Subscribe to all users from Firestore
+    const unsubscribeUsers = FirestoreAccountService.subscribeToAllUsers((users) => {
+      setRegisteredUsers(users);
+    });
+
+    // Subscribe to all active sessions from Firestore
+    const unsubscribeSessions = FirestoreAccountService.subscribeToActiveSessions((sessions) => {
+      setActiveSessions(sessions.map(session => session.email));
+    });
+
+    // Cleanup subscriptions on unmount or when authentication changes
+    return () => {
+      unsubscribeUsers();
+      unsubscribeSessions();
+      FirestoreAccountService.clearAllSubscriptions();
+    };
+  }, [isAuthenticated]);
+
+  const refreshUsers = async () => {
+    try {
+      // Fetch all users from Firestore
+      const users = await FirestoreAccountService.getAllUsers();
+      setRegisteredUsers(users);
+
+      // Fetch all active sessions from Firestore
+      const sessions = await FirestoreAccountService.getActiveSessions();
+      setActiveSessions(sessions.map(session => session.email));
     } catch (e) {
       console.error('Error refreshing portal accounts:', e);
     }
@@ -116,20 +140,24 @@ export default function AdminPortalDashboard({
       "CONFIRM ACCOUNT TERMINATION",
       `ADMIN WARN: Are you absolutely sure you want to terminate the credentials for [${email}]? This will revoke access and cancel checksum login capability instantly.`,
       "Revoke Access",
-      () => {
+      async () => {
         try {
+          // Delete user from Firestore
+          await FirestoreAccountService.deleteUser(email);
+
+          // Also delete from localStorage for backward compatibility
           const saved = localStorage.getItem('looplab_custom_users');
           const usersObj = saved ? JSON.parse(saved) : {};
           delete usersObj[email];
           localStorage.setItem('looplab_custom_users', JSON.stringify(usersObj));
 
-          // Expel dynamic sessions
+          // Clear active sessions for this user
           const active = localStorage.getItem('looplab_active_sessions');
           let activeArr = active ? JSON.parse(active) : [];
           activeArr = activeArr.filter((item: string) => item !== email);
           localStorage.setItem('looplab_active_sessions', JSON.stringify(activeArr));
 
-          refreshUsers();
+          // Real-time updates will be reflected automatically via Firestore subscriptions
           if (selectedAccount && selectedAccount.email === email) {
             setSelectedAccount(null);
           }
@@ -140,13 +168,21 @@ export default function AdminPortalDashboard({
     );
   };
 
-  const handleClearSession = (email: string) => {
+  const handleClearSession = async (email: string) => {
     try {
+      // Get and delete all sessions for this user from Firestore
+      const userSessions = await FirestoreAccountService.getUserSessions(email);
+      for (const session of userSessions) {
+        await FirestoreAccountService.endSession(session.sessionId);
+      }
+
+      // Also clear from localStorage for backward compatibility
       const active = localStorage.getItem('looplab_active_sessions');
       let activeArr = active ? JSON.parse(active) : [];
       activeArr = activeArr.filter((item: string) => item !== email);
       localStorage.setItem('looplab_active_sessions', JSON.stringify(activeArr));
-      refreshUsers();
+
+      // Real-time updates will be reflected automatically via Firestore subscriptions
     } catch (e) {
       console.error(e);
     }
@@ -157,10 +193,18 @@ export default function AdminPortalDashboard({
       "TERMINATE SYSTEM SESSIONS",
       "ADMIN RESET: Terminate all active concurrent user sessions across the student portal? This will instantly sign out all active accounts.",
       "Clear Sessions",
-      () => {
+      async () => {
         try {
+          // Get all sessions and delete them from Firestore
+          const allSessions = await FirestoreAccountService.getActiveSessions();
+          for (const session of allSessions) {
+            await FirestoreAccountService.endSession(session.sessionId);
+          }
+
+          // Also clear from localStorage for backward compatibility
           localStorage.setItem('looplab_active_sessions', '[]');
-          refreshUsers();
+
+          // Real-time updates will be reflected automatically via Firestore subscriptions
         } catch (e) {
           console.error(e);
         }
