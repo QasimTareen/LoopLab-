@@ -12,13 +12,11 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const firestoreDatabaseId: string = import.meta.env.VITE_FIREBASE_FIRESTORE_DB_ID;
-
 // Initialize core Firebase App
 const app = initializeApp(firebaseConfig);
 
-// Initialize FireStore Database & Authentication
-export const db = getFirestore(app, firestoreDatabaseId);
+// Use the default Firestore database for all portals and devices
+export const db = getFirestore(app);
 export const auth = getAuth(app);
 
 // Authentication Provider standard for popups

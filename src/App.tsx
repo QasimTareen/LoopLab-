@@ -16,7 +16,7 @@ import SecurityPortal from './components/SecurityPortal';
 import IntroCinematic from './components/IntroCinematic';
 
 // Firebase Integrations
-import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, setDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { db, auth, googleProvider, handleFirestoreError, OperationType } from './lib/firebase';
 
@@ -370,7 +370,7 @@ export default function App() {
           tempApps = local ? JSON.parse(local) : SEED_APPLICATIONS;
         }
         setApplications(tempApps);
-        localStorage.setItem('looplab_applications', JSON.stringify(tempApps));
+        
 
       } catch (err) {
         console.error("Global Firestore hydration fail:", err);
@@ -380,6 +380,13 @@ export default function App() {
     };
 
     loadFirebaseData();
+
+    const unsub = onSnapshot(collection(db, 'applications'), (snapshot) => {
+      const liveApps = snapshot.docs.map(d => d.data() as StudentApplication);
+      setApplications(liveApps);
+    });
+
+    return () => unsub();
   }, []);
 
   const saveApplications = async (updatedApps: StudentApplication[], singleApp?: StudentApplication) => {
@@ -388,7 +395,7 @@ export default function App() {
     );
 
     setApplications(updatedApps);
-    localStorage.setItem('looplab_applications', JSON.stringify(updatedApps));
+    
 
     for (const app of deletedApps) {
       try {
