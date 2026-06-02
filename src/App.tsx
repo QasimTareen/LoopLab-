@@ -1558,22 +1558,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* TAB 4: Register as Member */}
-          {activeTab === 'register' && (
-            <motion.div
-              key="register"
-              initial={{ opacity: 0, rotateY: 10, rotateX: 6, z: -120, y: 30 }}
-              animate={{ opacity: 1, rotateY: 0, rotateX: 0, z: 0, y: 0 }}
-              exit={{ opacity: 0, rotateY: -10, rotateX: -6, z: -120, y: -30 }}
-              transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-              className="max-w-2xl mx-auto space-y-6"
-              style={{ transformStyle: 'preserve-3d' }}
-            >
-              <div className="bg-[#12091f]/95 border border-purple-500/20 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute right-4 top-4 text-purple-500/10 text-8xl select-none font-serif">✿</div>
-                <MemberForm onSubmit={handleRegisterMember} />
-              </div>
-
         </AnimatePresence>
       </main>
 
