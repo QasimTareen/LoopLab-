@@ -301,92 +301,126 @@ export default function App() {
 
   // Authentication requirements waived - anyone can view all pages without login constraints
 
-  // Sync state data from Firestore (and write seed if empty)
+  // Sync state data from Firestore with real-time subscriptions
   useEffect(() => {
     const loadFirebaseData = async () => {
       setLoadingDb(true);
       try {
-        // Core members sync
-        let tempMembers: CoreMember[] = [];
-        try {
-          const membersSnap = await getDocs(collection(db, 'members'));
-          if (membersSnap.empty) {
-            for (const m of SEED_MEMBERS) {
-              await setDoc(doc(db, 'members', m.id), cleanUndefined(m));
+        // ===== MEMBERS - Real-time listener =====
+        const membersUnsubscribe = onSnapshot(
+          collection(db, 'members'),
+          (snapshot) => {
+            try {
+              if (snapshot.empty) {
+                // Seed members if empty
+                SEED_MEMBERS.forEach(m => {
+                  setDoc(doc(db, 'members', m.id), cleanUndefined(m)).catch(err => {
+                    console.error('Error seeding member:', err);
+                  });
+                });
+                setMembers(SEED_MEMBERS);
+                console.log('✅ Members synced from Firestore (seeded):', SEED_MEMBERS.length);
+              } else {
+                const membersData = snapshot.docs.map(d => d.data() as CoreMember);
+                setMembers(membersData);
+                console.log('✅ Members synced from Firestore:', membersData.length);
+              }
+            } catch (error) {
+              console.error('❌ Error processing members snapshot:', error);
             }
-            tempMembers = SEED_MEMBERS;
-          } else {
-            membersSnap.forEach((docSnap) => {
-              tempMembers.push(docSnap.data() as CoreMember);
-            });
+          },
+          (error) => {
+            console.error('❌ Firestore members subscription error:', error);
+            // Don't fall back to localStorage - Firestore is source of truth
           }
-        } catch (err) {
-          console.warn("Firestore member fetch failed, defaulting to localStorage...", err);
-          const local = localStorage.getItem('looplab_members');
-          tempMembers = local ? JSON.parse(local) : SEED_MEMBERS;
-        }
-        setMembers(tempMembers);
-        localStorage.setItem('looplab_members', JSON.stringify(tempMembers));
+        );
 
-        // Core teams sync
-        let tempTeams: CoreTeam[] = [];
-        try {
-          const teamsSnap = await getDocs(collection(db, 'teams'));
-          if (teamsSnap.empty) {
-            for (const t of SEED_TEAMS) {
-              await setDoc(doc(db, 'teams', t.id), cleanUndefined(t));
+        // ===== TEAMS - Real-time listener =====
+        const teamsUnsubscribe = onSnapshot(
+          collection(db, 'teams'),
+          (snapshot) => {
+            try {
+              if (snapshot.empty) {
+                // Seed teams if empty
+                SEED_TEAMS.forEach(t => {
+                  setDoc(doc(db, 'teams', t.id), cleanUndefined(t)).catch(err => {
+                    console.error('Error seeding team:', err);
+                  });
+                });
+                setTeams(SEED_TEAMS);
+                console.log('✅ Teams synced from Firestore (seeded):', SEED_TEAMS.length);
+              } else {
+                const teamsData = snapshot.docs.map(d => d.data() as CoreTeam);
+                setTeams(teamsData);
+                console.log('✅ Teams synced from Firestore:', teamsData.length);
+              }
+            } catch (error) {
+              console.error('❌ Error processing teams snapshot:', error);
             }
-            tempTeams = SEED_TEAMS;
-          } else {
-            teamsSnap.forEach((docSnap) => {
-              tempTeams.push(docSnap.data() as CoreTeam);
-            });
+          },
+          (error) => {
+            console.error('❌ Firestore teams subscription error:', error);
+            // Don't fall back to localStorage - Firestore is source of truth
           }
-        } catch (err) {
-          console.warn("Firestore team fetch failed, defaulting to localStorage...", err);
-          const local = localStorage.getItem('looplab_teams');
-          tempTeams = local ? JSON.parse(local) : SEED_TEAMS;
-        }
-        setTeams(tempTeams);
-        localStorage.setItem('looplab_teams', JSON.stringify(tempTeams));
+        );
 
-        // Applications sync
-        let tempApps: StudentApplication[] = [];
-        try {
-          const appsSnap = await getDocs(collection(db, 'applications'));
-          if (appsSnap.empty) {
-            for (const a of SEED_APPLICATIONS) {
-              await setDoc(doc(db, 'applications', a.id), cleanUndefined(a));
-            }
-            tempApps = SEED_APPLICATIONS;
-          } else {
-            appsSnap.forEach((docSnap) => {
-              tempApps.push(docSnap.data() as StudentApplication);
-            });
-          }
-        } catch (err) {
-          console.warn("Firestore application fetch failed, defaulting to localStorage...", err);
-          const local = localStorage.getItem('looplab_applications');
-          tempApps = local ? JSON.parse(local) : SEED_APPLICATIONS;
-        }
-        setApplications(tempApps);
-        
+        setLoadingDb(false);
 
+        // Return cleanup function for subscriptions
+        return () => {
+          membersUnsubscribe();
+          teamsUnsubscribe();
+        };
       } catch (err) {
-        console.error("Global Firestore hydration fail:", err);
-      } finally {
+        console.error("Global Firestore initialization error:", err);
         setLoadingDb(false);
       }
     };
 
-    loadFirebaseData();
+    const unsubscribe = loadFirebaseData();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
-    const unsub = onSnapshot(collection(db, 'applications'), (snapshot) => {
-      const liveApps = snapshot.docs.map(d => d.data() as StudentApplication);
-      setApplications(liveApps);
-    });
+  // Applications real-time subscription
+  useEffect(() => {
+    console.log('Setting up applications real-time listener...');
+    
+    const appsUnsubscribe = onSnapshot(
+      collection(db, 'applications'),
+      (snapshot) => {
+        try {
+          if (snapshot.empty) {
+            // Seed applications if empty
+            console.log('Applications collection empty, seeding with defaults...');
+            SEED_APPLICATIONS.forEach(a => {
+              setDoc(doc(db, 'applications', a.id), cleanUndefined(a)).catch(err => {
+                console.error('Error seeding application:', err);
+              });
+            });
+            setApplications(SEED_APPLICATIONS);
+            console.log('✅ Applications synced from Firestore (seeded):', SEED_APPLICATIONS.length);
+          } else {
+            const appsData = snapshot.docs.map(d => d.data() as StudentApplication);
+            setApplications(appsData);
+            console.log('✅ Applications synced from Firestore:', appsData.length);
+          }
+        } catch (error) {
+          console.error('❌ Error processing applications snapshot:', error);
+        }
+      },
+      (error) => {
+        console.error('❌ Firestore applications subscription error:', error);
+        console.error('ERROR DETAILS:', error);
+        // Don't fall back to localStorage - Firestore is source of truth
+      }
+    );
 
-    return () => unsub();
+    return () => {
+      console.log('Cleaning up applications real-time listener');
+      appsUnsubscribe();
+    };
   }, []);
 
   const saveApplications = async (updatedApps: StudentApplication[], singleApp?: StudentApplication) => {
