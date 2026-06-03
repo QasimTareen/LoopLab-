@@ -9,6 +9,7 @@ import { CoreMember, CoreTeam, StudentApplication } from './types';
 import Toast, { ToastMessage } from './components/Toast';
 import Hero3DHeader from './components/Hero3DHeader';
 import IntroCinematic from './components/IntroCinematic';
+import GamingAssessment from './components/GamingAssessment';
 
 // External link for Tally form
 const TALLY_FORM_URL = 'https://tally.so/r/Gx5OBe';
@@ -199,6 +200,11 @@ export default function App() {
     return `CSUM-${val}`;
   };
 
+  // VP Assessment flow state
+  const [showVPAssessment, setShowVPAssessment] = useState(false);
+  const [vpAssessmentScore, setVPAssessmentScore] = useState<any>(null);
+  const [showVPScoreResult, setShowVPScoreResult] = useState(false);
+
   // Home Page custom portal session state hooks
   const [regFullName, setRegFullName] = useState('');
   const [regEmail, setRegEmail] = useState('');
@@ -312,13 +318,37 @@ export default function App() {
   };
 
   const handleApplyRole = (title: string, section: 'LoopLab' | 'LoopTech For Women') => {
-    // All applications redirect to Tally form
-    // Tally form handles VP assessment and other position applications
+    // For VP position, show the assessment first
     if (title === 'Vice President') {
-      addToast('Launching VP Assessment - Complete it and take a screenshot of your final score!', 'success');
+      setShowVPAssessment(true);
+      setShowVPScoreResult(false);
+      setVPAssessmentScore(null);
+    } else {
+      // For all other positions, redirect directly to Tally form
+      window.location.href = TALLY_FORM_URL;
     }
-    // Redirect to Tally form
-    window.location.href = TALLY_FORM_URL;
+  };
+
+  // Handle VP assessment completion
+  const handleVPAssessmentComplete = (score: any) => {
+    setVPAssessmentScore(score);
+    setShowVPAssessment(false);
+    setShowVPScoreResult(true);
+  };
+
+  // Handle VP assessment cancel
+  const handleVPAssessmentCancel = () => {
+    setShowVPAssessment(false);
+    setShowVPScoreResult(false);
+    setVPAssessmentScore(null);
+  };
+
+  // Proceed to Tally form after seeing VP score
+  const handleProceedToTallyAfterVP = () => {
+    addToast('Redirecting to application form - paste your screenshot there!', 'success');
+    setTimeout(() => {
+      window.location.href = TALLY_FORM_URL;
+    }, 500);
   };
 
   // Export Database manifest
@@ -1186,7 +1216,7 @@ export default function App() {
                     </p>
                     <div className="flex items-center gap-3 text-[11px] text-fuchsia-200 font-mono bg-fuchsia-950/20 px-3 py-2 rounded-lg border border-fuchsia-500/10 w-fit">
                       <Gamepad2 className="w-4 h-4 text-fuchsia-400" />
-                      <span>Required Action: Complete the Interactive VP Combat Simulator in Step 3 of the application.</span>
+                      <span>Assessment → 6-min timer with critical thinking questions → See your score → Proceed to application form</span>
                     </div>
                   </div>
                   <div className="mt-6 md:mt-0 shrink-0">
@@ -1560,6 +1590,127 @@ export default function App() {
 
         </AnimatePresence>
       </main>
+
+      {/* VP ASSESSMENT MODAL */}
+      <AnimatePresence>
+        {showVPAssessment && (
+          <div className="fixed inset-0 bg-[#0c0515]/95 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3 }}
+              className="w-full max-w-4xl"
+            >
+              <GamingAssessment
+                onComplete={handleVPAssessmentComplete}
+                onCancel={handleVPAssessmentCancel}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* VP ASSESSMENT SCORE RESULT MODAL */}
+      <AnimatePresence>
+        {showVPScoreResult && vpAssessmentScore && (
+          <div className="fixed inset-0 bg-[#0c0515]/95 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-[#12091f] border border-fuchsia-500/30 rounded-3xl p-8 shadow-2xl max-w-2xl w-full"
+            >
+              <div className="text-center space-y-6">
+                {/* Header */}
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-black text-white">
+                    Vice President Assessment Complete! 🎮
+                  </h2>
+                  <p className="text-purple-300/80 text-sm">
+                    Your critical thinking evaluation has been scored
+                  </p>
+                </div>
+
+                {/* Score Display */}
+                <div className="bg-gradient-to-br from-fuchsia-950/50 to-purple-950/50 border border-fuchsia-500/20 rounded-2xl p-8 space-y-4">
+                  <div className="text-center space-y-2">
+                    <p className="text-purple-400 text-sm font-mono uppercase tracking-widest">
+                      Your Final Score
+                    </p>
+                    <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-pink-400">
+                      {vpAssessmentScore.totalScore}
+                    </div>
+                    <p className="text-purple-400/60 text-sm">
+                      out of {vpAssessmentScore.maxScore} points
+                    </p>
+                  </div>
+
+                  {/* Score Breakdown */}
+                  {vpAssessmentScore.answers && vpAssessmentScore.answers.length > 0 && (
+                    <div className="space-y-2 pt-4 border-t border-purple-500/20">
+                      <p className="text-xs font-mono text-purple-400 uppercase tracking-widest">
+                        Answer Breakdown
+                      </p>
+                      <div className="space-y-1 text-xs text-purple-300/70 text-left max-h-24 overflow-y-auto">
+                        {vpAssessmentScore.answers.map((answer: any, idx: number) => (
+                          <div key={idx} className="flex justify-between">
+                            <span>Question {idx + 1}:</span>
+                            <span className="font-mono font-bold text-fuchsia-300">
+                              +{answer.score} pts
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Screenshot Warning */}
+                <div className="bg-orange-950/40 border border-orange-500/30 rounded-xl p-4 space-y-2">
+                  <p className="flex items-start gap-2 text-orange-300 text-sm font-semibold">
+                    <span className="text-lg">⚠️</span>
+                    <span>Take a screenshot of this score immediately!</span>
+                  </p>
+                  <p className="text-orange-300/70 text-xs leading-relaxed">
+                    Your score data will be lost once you proceed. Please capture your score before clicking "Proceed to Application Form" below.
+                  </p>
+                </div>
+
+                {/* Progress Info */}
+                <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-3">
+                  <p className="text-xs text-purple-400 text-center font-mono">
+                    Next: Submit your application form with screenshot attached
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleProceedToTallyAfterVP}
+                    className="flex-1 py-3 bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-extrabold text-sm uppercase tracking-widest rounded-xl transition-all shadow-lg cursor-pointer"
+                  >
+                    ✓ Proceed to Application Form
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleVPAssessmentCancel}
+                    className="py-3 px-4 bg-purple-950/40 hover:bg-purple-950/60 text-purple-300 font-semibold text-sm uppercase rounded-xl border border-purple-500/20 transition-all cursor-pointer"
+                  >
+                    Retake
+                  </button>
+                </div>
+
+                <p className="text-xs text-purple-400/50 font-mono">
+                  Timestamp: {new Date().toLocaleString()}
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Pristine Sophisticated Dark Footer bar with status indicator */}
       <footer className="w-full max-w-7xl mx-auto mt-8 bg-gradient-to-r from-[#160b26] to-[#04010a] border border-purple-500/15 rounded-xl px-5 py-4 flex flex-col sm:flex-row justify-between items-center text-xs text-white tracking-wider">
