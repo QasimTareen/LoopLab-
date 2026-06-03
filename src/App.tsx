@@ -1640,26 +1640,27 @@ export default function App() {
                       Your Final Score
                     </p>
                     <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-pink-400">
-                      {vpAssessmentScore.totalScore}
+                      {vpAssessmentScore.correctAnswers}
                     </div>
                     <p className="text-purple-400/60 text-sm">
-                      out of {vpAssessmentScore.maxScore} points
+                      out of 30 points
+                    </p>
+                    <p className="text-fuchsia-300 text-xs font-mono font-semibold uppercase tracking-widest pt-1">
+                      {vpAssessmentScore.strategicVerdict}
                     </p>
                   </div>
 
                   {/* Score Breakdown */}
-                  {vpAssessmentScore.answers && vpAssessmentScore.answers.length > 0 && (
+                  {vpAssessmentScore.strategicDecisions && vpAssessmentScore.strategicDecisions.length > 0 && (
                     <div className="space-y-2 pt-4 border-t border-purple-500/20">
                       <p className="text-xs font-mono text-purple-400 uppercase tracking-widest">
-                        Answer Breakdown
+                        Strategic Decisions
                       </p>
-                      <div className="space-y-1 text-xs text-purple-300/70 text-left max-h-24 overflow-y-auto">
-                        {vpAssessmentScore.answers.map((answer: any, idx: number) => (
-                          <div key={idx} className="flex justify-between">
-                            <span>Question {idx + 1}:</span>
-                            <span className="font-mono font-bold text-fuchsia-300">
-                              +{answer.score} pts
-                            </span>
+                      <div className="space-y-1 text-xs text-purple-300/70 text-left max-h-28 overflow-y-auto">
+                        {vpAssessmentScore.strategicDecisions.map((decision: string, idx: number) => (
+                          <div key={idx} className="flex items-start gap-2">
+                            <span className="text-fuchsia-400 font-mono shrink-0">Q{idx + 1}:</span>
+                            <span>{decision}</span>
                           </div>
                         ))}
                       </div>
